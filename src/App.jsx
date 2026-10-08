@@ -167,7 +167,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800 font-sans w-full">
+    <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800 font-sans w-screen overflow-x-hidden">
       {/* Header */}
       <header className="bg-indigo-600 text-white shadow-md print:hidden w-full">
         <div className="w-full px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
@@ -207,6 +207,7 @@ export default function App() {
         )}
       </main>
 
+      {}
       {/* Modals & Overlays */}
       {showAdminLogin && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 px-4">
@@ -333,7 +334,7 @@ function RollcallView({ classes, students, user, showToast }) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 max-w-7xl mx-auto">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 w-full mx-auto">
       <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-2 flex items-center">
         <ClipboardList className="text-indigo-600 w-6 h-6 mr-2" /> 課堂點名
       </h2>
@@ -449,7 +450,7 @@ function AdminView(props) {
   const [adminTab, setAdminTab] = useState('records'); // 'records', 'settings'
 
   return (
-    <div className="h-full flex flex-col space-y-4 max-w-7xl mx-auto">
+    <div className="h-full flex flex-col space-y-4 w-full mx-auto">
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2 flex space-x-2 print:hidden">
         <button 
           onClick={() => setAdminTab('records')}
@@ -852,7 +853,8 @@ function AdminSettings({ classes, students, user, refreshData, showToast, setCon
       setGlobalImportModal({show: false, file: null, parsedData: [], classesCount: 0, studentsCount: 0});
       refreshData();
     } catch (err) {
-      showToast("匯入失敗", "error");
+      console.error(err); // 印出詳細錯誤供除錯
+      showToast("匯入失敗: " + err.message, "error"); 
     }
     setIsSubmitting(false);
   };
