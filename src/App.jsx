@@ -7,7 +7,6 @@ import {
   Upload, Printer, AlertTriangle, CheckCircle, Info, ChevronDown, Check
 } from 'lucide-react';
 
-// 全局環境判斷
 const IS_PREVIEW_ENV = typeof __app_id !== 'undefined';
 const APP_ID = IS_PREVIEW_ENV ? __app_id : 'learning-support-rollcall-sys';
 
@@ -25,7 +24,6 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// 管理員密碼
 const ADMIN_PASSWORD = "teach123";
 
 const STATUS_OPTIONS = [
@@ -57,12 +55,10 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
   
-  // Data State
   const [classes, setClasses] = useState([]);
   const [students, setStudents] = useState([]);
   const [records, setRecords] = useState([]);
 
-  // Modals State
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPwdInput, setAdminPwdInput] = useState('');
   const [loginError, setLoginError] = useState(false);
@@ -97,7 +93,6 @@ export default function App() {
       try {
         const classesSnap = await getDocs(getColRef('classes'));
         
-        // Initial setup if empty
         if (classesSnap.empty) {
           console.log("Setting up initial data...");
           const batch = writeBatch(db);
@@ -167,96 +162,107 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800 font-sans w-screen overflow-x-hidden">
-      {/* Header */}
-      <header className="bg-indigo-600 text-white shadow-md print:hidden w-full">
-        <div className="w-full px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <ClipboardList className="w-6 h-6" />
-            <h1 className="text-xl font-bold">學習扶助點名系統</h1>
+    <React.Fragment>
+      {/* 🌟 核心修復：強制覆蓋 Vite 預設會造成黑邊與置中的樣式 */}
+      <style>{`
+        html, body, #root {
+          margin: 0 !important;
+          padding: 0 !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          overflow-x: hidden !important;
+          display: block !important;
+        }
+      `}</style>
+      
+      <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800 font-sans w-full text-left">
+        {/* Header */}
+        <header className="bg-indigo-600 text-white shadow-md print:hidden w-full">
+          <div className="w-full px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <div className="flex items-center space-x-2">
+              <ClipboardList className="w-6 h-6" />
+              <h1 className="text-xl font-bold">學習扶助點名系統</h1>
+            </div>
+            <nav className="flex space-x-2">
+              <button 
+                onClick={() => setView('rollcall')}
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center ${view === 'rollcall' ? 'bg-indigo-700' : 'hover:bg-indigo-500'}`}
+              >
+                教師點名
+              </button>
+              <button 
+                onClick={handleNavAdmin}
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center ${view === 'admin' ? 'bg-indigo-700' : 'hover:bg-indigo-500'}`}
+              >
+                <Settings className="w-4 h-4 mr-1" /> 管理後台
+              </button>
+            </nav>
           </div>
-          <nav className="flex space-x-2">
-            <button 
-              onClick={() => setView('rollcall')}
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center ${view === 'rollcall' ? 'bg-indigo-700' : 'hover:bg-indigo-500'}`}
-            >
-              教師點名
-            </button>
-            <button 
-              onClick={handleNavAdmin}
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center ${view === 'admin' ? 'bg-indigo-700' : 'hover:bg-indigo-500'}`}
-            >
-              <Settings className="w-4 h-4 mr-1" /> 管理後台
-            </button>
-          </nav>
-        </div>
-      </header>
+        </header>
 
-      {/* Main Content */}
-      <main className="flex-grow p-4 sm:p-6 lg:p-8 w-full bg-gray-50">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center h-64 text-indigo-600">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
-            <p>系統載入中，請稍候...</p>
+        {/* Main Content */}
+        <main className="flex-grow p-4 sm:p-6 lg:p-8 w-full bg-gray-50">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center h-64 text-indigo-600">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
+              <p>系統載入中，請稍候...</p>
+            </div>
+          ) : (
+            <>
+              {view === 'rollcall' && <RollcallView classes={classes} students={students} user={user} showToast={showToast} />}
+              {view === 'admin' && <AdminView classes={classes} students={students} user={user} refreshData={refreshData} showToast={showToast} setConfirmModal={setConfirmModal} />}
+            </>
+          )}
+        </main>
+
+        {}
+        {showAdminLogin && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 px-4">
+            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold flex items-center"><LogIn className="w-5 h-5 mr-2 text-indigo-600"/> 管理員登入</h3>
+                <button onClick={() => setShowAdminLogin(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
+              </div>
+              <input 
+                type="password" 
+                value={adminPwdInput}
+                onChange={(e) => setAdminPwdInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && submitAdminLogin()}
+                placeholder="請輸入管理員密碼"
+                style={{colorScheme: 'light'}}
+                className="w-full border-gray-300 border rounded-md p-2 mb-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white text-gray-900"
+              />
+              {loginError && <p className="text-red-500 text-sm mb-4">密碼錯誤，請重試。</p>}
+              <button onClick={submitAdminLogin} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded mt-2">登入</button>
+            </div>
           </div>
-        ) : (
-          <>
-            {view === 'rollcall' && <RollcallView classes={classes} students={students} user={user} showToast={showToast} />}
-            {view === 'admin' && <AdminView classes={classes} students={students} user={user} refreshData={refreshData} showToast={showToast} setConfirmModal={setConfirmModal} />}
-          </>
         )}
-      </main>
 
-      {}
-      {/* Modals & Overlays */}
-      {showAdminLogin && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 px-4">
-          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold flex items-center"><LogIn className="w-5 h-5 mr-2 text-indigo-600"/> 管理員登入</h3>
-              <button onClick={() => setShowAdminLogin(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
-            </div>
-            <input 
-              type="password" 
-              value={adminPwdInput}
-              onChange={(e) => setAdminPwdInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && submitAdminLogin()}
-              placeholder="請輸入管理員密碼"
-              style={{colorScheme: 'light'}}
-              className="w-full border-gray-300 border rounded-md p-2 mb-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white text-gray-900"
-            />
-            {loginError && <p className="text-red-500 text-sm mb-4">密碼錯誤，請重試。</p>}
-            <button onClick={submitAdminLogin} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded mt-2">登入</button>
-          </div>
-        </div>
-      )}
-
-      {/* Confirm Delete Modal */}
-      {confirmModal.show && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 px-4">
-          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm text-center">
-            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-              <AlertTriangle className="text-red-600 w-6 h-6" />
-            </div>
-            <h3 className="text-lg font-bold mb-2">確認刪除</h3>
-            <p className="text-sm text-gray-500 mb-6">
-              確定要刪除 <span className="font-bold text-gray-800">{confirmModal.name}</span> 嗎？此操作無法復原。
-              {confirmModal.type === 'class' && <><br/><span className="text-red-500 mt-1 block">警告：這將同時刪除該班級下的所有學生！</span></>}
-            </p>
-            <div className="flex justify-center space-x-3">
-              <button onClick={() => setConfirmModal({show:false})} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">取消</button>
-              <button onClick={confirmModal.onConfirm} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">確定刪除</button>
+        {confirmModal.show && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 px-4">
+            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                <AlertTriangle className="text-red-600 w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold mb-2">確認刪除</h3>
+              <p className="text-sm text-gray-500 mb-6">
+                確定要刪除 <span className="font-bold text-gray-800">{confirmModal.name}</span> 嗎？此操作無法復原。
+                {confirmModal.type === 'class' && <><br/><span className="text-red-500 mt-1 block">警告：這將同時刪除該班級下的所有學生！</span></>}
+              </p>
+              <div className="flex justify-center space-x-3">
+                <button onClick={() => setConfirmModal({show:false})} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-gray-800">取消</button>
+                <button onClick={confirmModal.onConfirm} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">確定刪除</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Toast Notification */}
-      <div className={`fixed bottom-5 right-5 transform transition-all duration-300 z-50 flex items-center px-6 py-3 rounded-lg shadow-lg text-white ${toast.show ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0'} ${toast.type === 'error' ? 'bg-red-600' : toast.type === 'warning' ? 'bg-yellow-500' : 'bg-gray-800'}`}>
-        {toast.type === 'error' ? <AlertTriangle className="w-5 h-5 mr-3" /> : <CheckCircle className="w-5 h-5 mr-3 text-green-400" />}
-        <span>{toast.msg}</span>
+        <div className={`fixed bottom-5 right-5 transform transition-all duration-300 z-50 flex items-center px-6 py-3 rounded-lg shadow-lg text-white ${toast.show ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0'} ${toast.type === 'error' ? 'bg-red-600' : toast.type === 'warning' ? 'bg-yellow-500' : 'bg-gray-800'}`}>
+          {toast.type === 'error' ? <AlertTriangle className="w-5 h-5 mr-3" /> : <CheckCircle className="w-5 h-5 mr-3 text-green-400" />}
+          <span>{toast.msg}</span>
+        </div>
       </div>
-    </div>
+    </React.Fragment>
   );
 }
 
@@ -265,7 +271,6 @@ function RollcallView({ classes, students, user, showToast }) {
   const [selectedClassId, setSelectedClassId] = useState('');
   const [hasExistingRecord, setHasExistingRecord] = useState(false);
   
-  // State for attendance: { studentId: { status, note } }
   const [attendance, setAttendance] = useState({});
   const [generalNote, setGeneralNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -290,7 +295,6 @@ function RollcallView({ classes, students, user, showToast }) {
     checkRecord();
   }, [date, selectedClassId, user]);
 
-  // Initialize attendance state when class changes
   useEffect(() => {
     const initialAtt = {};
     classStudents.forEach(stu => {
@@ -447,7 +451,7 @@ function RollcallView({ classes, students, user, showToast }) {
 }
 
 function AdminView(props) {
-  const [adminTab, setAdminTab] = useState('records'); // 'records', 'settings'
+  const [adminTab, setAdminTab] = useState('records');
 
   return (
     <div className="h-full flex flex-col space-y-4 w-full mx-auto">
@@ -484,7 +488,6 @@ function AdminRecords({ classes, user }) {
       try {
         const snap = await getDocs(getColRef('rollcall_records'));
         let data = [];
-        // RULE 2: Filter in JS to avoid complex indexes
         snap.forEach(doc => {
           const rec = doc.data();
           if (rec.date === filterDate) {
@@ -626,7 +629,6 @@ function AdminRecords({ classes, user }) {
 function AdminSettings({ classes, students, user, refreshData, showToast, setConfirmModal }) {
   const [activeClassId, setActiveClassId] = useState('');
   
-  // Modals Data state
   const [classModal, setClassModal] = useState({ show: false, id: '', name: '', teacher: '' });
   const [studentModal, setStudentModal] = useState({ show: false, id: '', classId: '', name: '', originalClass: '', originalNumber: '', number: '' });
   const [importModal, setImportModal] = useState({ show: false, classId: '', file: null, parsedData: [] });
@@ -678,7 +680,6 @@ function AdminSettings({ classes, students, user, refreshData, showToast, setCon
   const handleDeleteClass = async (id) => {
     try {
       await deleteDoc(getDocRef('classes', id));
-      // Delete associated students
       const stuToDelete = students.filter(s => s.classId === id);
       const batch = writeBatch(db);
       stuToDelete.forEach(s => batch.delete(getDocRef('students', s.id)));
@@ -755,7 +756,8 @@ function AdminSettings({ classes, students, user, refreshData, showToast, setCon
       setImportModal({show: false, classId: '', file: null, parsedData: []});
       refreshData();
     } catch (e) {
-      showToast("匯入失敗", "error");
+      console.error(e);
+      showToast("匯入失敗: " + e.message, "error");
     }
   };
 
@@ -782,7 +784,6 @@ function AdminSettings({ classes, students, user, refreshData, showToast, setCon
       const classesSet = new Set();
       for (let i = 1; i < lines.length; i++) {
         const cols = lines[i].split(',');
-        // 格式: 扶助班級,授課教師,學生姓名,原班級,原班級座號
         if (cols.length >= 3 && cols[0].trim() !== '' && cols[2].trim() !== '') {
           parsed.push({ 
             className: cols[0].trim(), 
@@ -811,7 +812,6 @@ function AdminSettings({ classes, students, user, refreshData, showToast, setCon
       const classMap = {};
       const classMaxStuNum = {};
       
-      // 先載入已存在的班級，避免重複建立
       classes.forEach(c => {
          classMap[c.name] = c.id;
          const stus = students.filter(s => s.classId === c.id);
@@ -821,7 +821,6 @@ function AdminSettings({ classes, students, user, refreshData, showToast, setCon
       for (const row of globalImportModal.parsedData) {
         let classId = classMap[row.className];
 
-        // 如果班級不存在，就建立新班級
         if (!classId) {
           classId = `class_${generateId()}`;
           classMap[row.className] = classId;
@@ -834,7 +833,6 @@ function AdminSettings({ classes, students, user, refreshData, showToast, setCon
           });
         }
 
-        // 建立學生
         classMaxStuNum[classId]++;
         const stuId = `stu_${generateId()}`;
         batch.set(getDocRef('students', stuId), {
@@ -853,7 +851,7 @@ function AdminSettings({ classes, students, user, refreshData, showToast, setCon
       setGlobalImportModal({show: false, file: null, parsedData: [], classesCount: 0, studentsCount: 0});
       refreshData();
     } catch (err) {
-      console.error(err); // 印出詳細錯誤供除錯
+      console.error(err);
       showToast("匯入失敗: " + err.message, "error"); 
     }
     setIsSubmitting(false);
@@ -871,7 +869,6 @@ function AdminSettings({ classes, students, user, refreshData, showToast, setCon
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Class List */}
         <div className="lg:col-span-1 border-r-0 lg:border-r pr-0 lg:pr-6 border-gray-200">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold text-gray-800">扶助班級列表</h3>
@@ -896,7 +893,6 @@ function AdminSettings({ classes, students, user, refreshData, showToast, setCon
           </ul>
         </div>
 
-        {/* Student List */}
         <div className="lg:col-span-2">
           {!activeClassId ? (
             <div className="text-center py-16 text-gray-400">
@@ -956,7 +952,7 @@ function AdminSettings({ classes, students, user, refreshData, showToast, setCon
         </div>
       </div>
 
-      {/* Class Modal */}
+      {}
       {classModal.show && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 px-4">
           <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
@@ -970,14 +966,13 @@ function AdminSettings({ classes, students, user, refreshData, showToast, setCon
               <input type="text" value={classModal.teacher} onChange={e => setClassModal({...classModal, teacher: e.target.value})} style={{colorScheme: 'light'}} className="w-full border p-2 rounded outline-none focus:border-indigo-500 bg-white text-gray-900"/>
             </div>
             <div className="flex justify-end space-x-3">
-              <button onClick={() => setClassModal({show:false})} className="px-4 py-2 bg-gray-200 rounded">取消</button>
+              <button onClick={() => setClassModal({show:false})} className="px-4 py-2 bg-gray-200 rounded text-gray-800">取消</button>
               <button onClick={handleSaveClass} className="px-4 py-2 bg-indigo-600 text-white rounded">儲存</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Student Modal */}
       {studentModal.show && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 px-4">
           <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
@@ -999,14 +994,13 @@ function AdminSettings({ classes, students, user, refreshData, showToast, setCon
               <input type="number" value={studentModal.number} onChange={e => setStudentModal({...studentModal, number: e.target.value})} style={{colorScheme: 'light'}} className="w-full border p-2 rounded outline-none focus:border-indigo-500 bg-white text-gray-900"/>
             </div>
             <div className="flex justify-end space-x-3">
-              <button onClick={() => setStudentModal({show:false})} className="px-4 py-2 bg-gray-200 rounded">取消</button>
+              <button onClick={() => setStudentModal({show:false})} className="px-4 py-2 bg-gray-200 rounded text-gray-800">取消</button>
               <button onClick={handleSaveStudent} className="px-4 py-2 bg-indigo-600 text-white rounded">儲存</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Import Modal */}
       {importModal.show && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 px-4">
           <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
@@ -1025,14 +1019,13 @@ function AdminSettings({ classes, students, user, refreshData, showToast, setCon
               </div>
             )}
             <div className="flex justify-end space-x-3 mt-4">
-              <button onClick={() => setImportModal({show:false, classId:'', file:null, parsedData:[]})} className="px-4 py-2 bg-gray-200 rounded">取消</button>
+              <button onClick={() => setImportModal({show:false, classId:'', file:null, parsedData:[]})} className="px-4 py-2 bg-gray-200 rounded text-gray-800">取消</button>
               <button onClick={confirmBulkImport} disabled={importModal.parsedData.length === 0} className="px-4 py-2 bg-indigo-600 text-white rounded disabled:bg-indigo-400">確認匯入</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Global Import Modal */}
       {globalImportModal.show && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 px-4">
           <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
