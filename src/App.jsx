@@ -223,6 +223,7 @@ export default function App() {
                 <button onClick={() => setShowAdminLogin(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
               </div>
               <input 
+                autoFocus
                 type="password" 
                 value={adminPwdInput}
                 onChange={(e) => setAdminPwdInput(e.target.value)}
