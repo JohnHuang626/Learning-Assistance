@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, setDoc, getDoc, getDocs, collection, deleteDoc, writeBatch } from 'firebase/firestore';
 import { 
   ClipboardList, Settings, LogIn, X, Plus, Trash2, Edit, FileDown, 
-  Upload, Printer, AlertTriangle, CheckCircle, Info, ChevronDown, Check
+  Upload, Printer, AlertTriangle, CheckCircle, Info, ChevronDown
 } from 'lucide-react';
 
 const IS_PREVIEW_ENV = typeof __app_id !== 'undefined';
@@ -57,7 +57,6 @@ export default function App() {
   
   const [classes, setClasses] = useState([]);
   const [students, setStudents] = useState([]);
-  const [records, setRecords] = useState([]);
 
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPwdInput, setAdminPwdInput] = useState('');
@@ -247,7 +246,8 @@ export default function App() {
               <h3 className="text-lg font-bold mb-2">確認刪除</h3>
               <p className="text-sm text-gray-500 mb-6">
                 確定要刪除 <span className="font-bold text-gray-800">{confirmModal.name}</span> 嗎？此操作無法復原。
-                {confirmModal.type === 'class' && <><br/><span className="text-red-500 mt-1 block">警告：這將同時刪除該班級下的所有學生！</span></>}
+                {confirmModal.type === 'class' && <><br/><span className="text-red-500 mt-1 block">警告：這將同時刪除該班級下的所有學生及歷史點名紀錄！</span></>}
+                {confirmModal.type === 'all_records' && <><br/><span className="text-red-500 mt-1 block">警告：這將刪除目前畫面上顯示的所有點名紀錄！</span></>}
               </p>
               <div className="flex justify-center space-x-3">
                 <button onClick={() => setConfirmModal({show:false})} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-gray-800">取消</button>
@@ -475,43 +475,81 @@ function AdminView(props) {
   );
 }
 
-function AdminRecords({ classes, user }) {
+function AdminRecords({ classes, user, showToast, setConfirmModal }) {
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
   const [filterClass, setFilterClass] = useState('all');
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  const fetchRecords = async () => {
+    if (!user || !filterDate) return;
+    setLoading(true);
+    try {
+      const snap = await getDocs(getColRef('rollcall_records'));
+      let data = [];
+      snap.forEach(doc => {
+        const rec = doc.data();
+        if (rec.date === filterDate) {
+          if (filterClass === 'all' || rec.classId === filterClass) data.push(rec);
+        }
+      });
+      setRecords(data);
+    } catch (err) {
+      console.error(err);
+    }
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const fetchRecords = async () => {
-      if (!user || !filterDate) return;
-      setLoading(true);
-      try {
-        const snap = await getDocs(getColRef('rollcall_records'));
-        let data = [];
-        snap.forEach(doc => {
-          const rec = doc.data();
-          if (rec.date === filterDate) {
-            if (filterClass === 'all' || rec.classId === filterClass) data.push(rec);
-          }
-        });
-        setRecords(data);
-      } catch (err) {
-        console.error(err);
-      }
-      setLoading(false);
-    };
     fetchRecords();
   }, [filterDate, filterClass, user]);
 
+  const handleDeleteRecord = async (id) => {
+    try {
+      await deleteDoc(getDocRef('rollcall_records', id));
+      showToast("點名紀錄已刪除");
+      fetchRecords();
+    } catch (err) {
+      showToast("刪除失敗", "error");
+    }
+  };
+
+  const handleDeleteAllRecords = async () => {
+    if (records.length === 0) return;
+    try {
+      const batch = writeBatch(db);
+      records.forEach(rec => {
+        batch.delete(getDocRef('rollcall_records', rec.id));
+      });
+      await batch.commit();
+      showToast("畫面上的點名紀錄已全數刪除");
+      fetchRecords();
+    } catch (err) {
+      showToast("刪除失敗", "error");
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <div className="flex justify-between items-center mb-6 border-b pb-2 print:hidden">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 border-b pb-4 print:hidden space-y-4 sm:space-y-0">
         <h2 className="text-2xl font-bold text-gray-800 flex items-center">
           <ClipboardList className="text-indigo-600 w-6 h-6 mr-2" /> 點名紀錄查詢
         </h2>
-        <button onClick={() => window.print()} className="bg-green-600 hover:bg-green-700 text-white py-1.5 px-4 rounded flex items-center text-sm">
-          <Printer className="w-4 h-4 mr-2" /> 列印報表
-        </button>
+        <div className="flex space-x-2">
+          <button 
+            onClick={() => setConfirmModal({
+              show: true, type: 'all_records', name: filterDate,
+              onConfirm: () => { handleDeleteAllRecords(); setConfirmModal({show:false}); }
+            })} 
+            disabled={records.length === 0 || loading}
+            className="bg-red-600 hover:bg-red-700 text-white py-1.5 px-4 rounded flex items-center text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Trash2 className="w-4 h-4 mr-1" /> 刪除顯示紀錄
+          </button>
+          <button onClick={() => window.print()} className="bg-green-600 hover:bg-green-700 text-white py-1.5 px-4 rounded flex items-center text-sm">
+            <Printer className="w-4 h-4 mr-1" /> 列印報表
+          </button>
+        </div>
       </div>
 
       <div className="hidden print:block text-center mb-6">
@@ -554,13 +592,25 @@ function AdminRecords({ classes, user }) {
                     <h3 className="text-lg font-bold text-gray-800">{rec.className}</h3>
                     <p className="text-sm text-gray-600">授課教師：{rec.teacher}</p>
                   </div>
-                  <div className="text-right">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mr-2">
-                      應到: {total} | 實到: {present}
-                    </span>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${absentCount > 0 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
-                      缺席: {absentCount}
-                    </span>
+                  <div className="text-right flex items-center space-x-2">
+                    <div>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mr-2">
+                        應到: {total} | 實到: {present}
+                      </span>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${absentCount > 0 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
+                        缺席: {absentCount}
+                      </span>
+                    </div>
+                    <button 
+                      onClick={() => setConfirmModal({
+                        show: true, type: 'record', name: `${rec.className} 點名紀錄`,
+                        onConfirm: () => { handleDeleteRecord(rec.id); setConfirmModal({show:false}); }
+                      })} 
+                      className="text-red-400 hover:text-red-600 p-1.5 print:hidden border border-transparent hover:bg-red-50 rounded transition-colors" 
+                      title="刪除此紀錄"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
                 
@@ -680,13 +730,25 @@ function AdminSettings({ classes, students, user, refreshData, showToast, setCon
   const handleDeleteClass = async (id) => {
     try {
       await deleteDoc(getDocRef('classes', id));
-      const stuToDelete = students.filter(s => s.classId === id);
+      
       const batch = writeBatch(db);
+      
+      // 1. 刪除該班級的學生
+      const stuToDelete = students.filter(s => s.classId === id);
       stuToDelete.forEach(s => batch.delete(getDocRef('students', s.id)));
+      
+      // 2. 刪除該班級對應的歷史點名紀錄
+      const recordsSnap = await getDocs(getColRef('rollcall_records'));
+      recordsSnap.forEach(docSnap => {
+        if (docSnap.data().classId === id) {
+          batch.delete(getDocRef('rollcall_records', docSnap.id));
+        }
+      });
+
       await batch.commit();
       
       if (activeClassId === id) setActiveClassId('');
-      showToast("班級已刪除");
+      showToast("班級及其學生與歷史點名紀錄已刪除");
       refreshData();
     } catch (e) {
       showToast("刪除失敗", "error");
@@ -1001,6 +1063,7 @@ function AdminSettings({ classes, students, user, refreshData, showToast, setCon
         </div>
       )}
 
+      {}
       {importModal.show && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 px-4">
           <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
